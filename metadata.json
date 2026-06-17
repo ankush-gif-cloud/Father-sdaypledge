@@ -1,0 +1,8 @@
+{
+  "name": "Remix: First Salary Pledge",
+  "description": "Generate a beautiful pledge card to your father.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

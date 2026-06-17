@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Lead",
+      "description": "User pledges",
+      "type": "object",
+      "properties": {
+        "candidateName": { "type": "string" },
+        "fatherName": { "type": "string" },
+        "targetExam": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      }
+    }
+  },
+  "firestore": {
+    "/leads/{leadId}": {
+      "schema": { "$ref": "#/entities/Lead" },
+      "description": "Captured leads from pledge campaigns."
+    }
+  }
+}

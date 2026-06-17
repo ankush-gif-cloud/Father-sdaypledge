@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isAdmin() {
+      return request.auth != null && 
+             request.auth.token.email_verified == true && 
+             request.auth.token.email == 'maheshwari.jahanvi9@gmail.com';
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['candidateName', 'fatherName', 'targetExam', 'phoneNumber', 'createdAt']) && 
+             data.keys().size() == 5 &&
+             data.candidateName is string && data.candidateName.size() > 0 && data.candidateName.size() <= 100 &&
+             data.fatherName is string && data.fatherName.size() > 0 && data.fatherName.size() <= 100 &&
+             data.targetExam is string && data.targetExam.size() > 0 && data.targetExam.size() <= 100 &&
+             data.phoneNumber is string && data.phoneNumber.size() <= 20 &&
+             data.createdAt == request.time;
+    }
+
+    match /leads/{leadId} {
+      // Allow anyone to submit a pledge card (unauthenticated)
+      allow create: if isValidLead(request.resource.data);
+      // Only admin can read, modify, or delete
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
