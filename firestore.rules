@@ -18,8 +18,10 @@ service cloud.firestore {
     match /leads/{leadId} {
       // Allow anyone to submit a pledge card (unauthenticated)
       allow create: if true;
-      // Only admin can read, modify, or delete
-      allow read, update, delete: if isAdmin();
+      // Allow read for password access
+      allow read: if true;
+      // Only admin can modify, or delete
+      allow update, delete: if isAdmin();
     }
   }
 }

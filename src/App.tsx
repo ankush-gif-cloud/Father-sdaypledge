@@ -34,14 +34,16 @@ export default function App() {
       </header>
 
       <main className="flex-1 relative z-10 flex flex-col items-center justify-start p-4 py-6 md:py-8 mt-2 md:mt-4 w-full">
-        {isAdmin ? (
-          <AdminDashboard onExit={() => setIsAdmin(false)} />
-        ) : showIntro ? (
+        {showIntro ? (
           <IntroScreen onStart={() => setShowIntro(false)} />
         ) : !pledgeData ? (
           <PledgeForm onSubmit={setPledgeData} />
         ) : (
           <PledgeCard data={pledgeData} onReset={() => setPledgeData(null)} />
+        )}
+        
+        {isAdmin && (
+          <AdminDashboard onExit={() => setIsAdmin(false)} />
         )}
       </main>
       

@@ -3,8 +3,7 @@ import { motion } from 'motion/react';
 import { ArrowLeft, RefreshCw, Download, Users, LogIn, LogOut } from 'lucide-react';
 import { PledgeData } from '../types';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { db, auth } from '../lib/firebase';
+import { db } from '../lib/firebase';
 
 enum OperationType {
   GET = 'get',
@@ -14,21 +13,11 @@ interface FirestoreErrorInfo {
   error: string;
   operationType: OperationType;
   path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-  };
 }
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-    },
     operationType,
     path
   };
@@ -40,17 +29,12 @@ export function AdminDashboard({ onExit }: { onExit: () => void }) {
   const [leads, setLeads] = useState<(PledgeData & { id: string, createdAt: string })[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState(auth.currentUser);
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
-    });
-    return () => unsubscribe();
-  }, []);
+  
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [password, setPassword] = useState('');
 
   const fetchLeads = async () => {
-    if (!user) return;
+    if (!isLoggedIn) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -66,8 +50,8 @@ export function AdminDashboard({ onExit }: { onExit: () => void }) {
         });
       });
       setLeads(data);
-    } catch (err) {
-      setError('Permission denied or network error.');
+    } catch (err: any) {
+      setError(err?.message || 'Permission denied or network error.');
       handleFirestoreError(err, OperationType.GET, 'leads');
     } finally {
       setIsLoading(false);
@@ -75,24 +59,26 @@ export function AdminDashboard({ onExit }: { onExit: () => void }) {
   };
 
   useEffect(() => {
-    if (user) {
+    if (isLoggedIn) {
       fetchLeads();
     }
-  }, [user]);
+  }, [isLoggedIn]);
 
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (err) {
-      console.error('Login failed', err);
-      setError('Login failed. Please try again.');
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'Adda@2025';
+    if (password === adminPassword) {
+      setIsLoggedIn(true);
+    } else {
+      setError('Invalid password. Please try again.');
     }
   };
 
-  const handleLogout = async () => {
-    await signOut(auth);
+  const handleLogout = () => {
+    setIsLoggedIn(false);
     setLeads([]);
+    setPassword('');
   };
 
   const downloadCSV = () => {
@@ -122,33 +108,51 @@ export function AdminDashboard({ onExit }: { onExit: () => void }) {
     document.body.removeChild(link);
   };
 
-  if (!user) {
+  if (!isLoggedIn) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 bg-white rounded-2xl shadow-xl max-w-md w-full border border-slate-200 mt-10">
-        <Users className="w-12 h-12 text-[#EB3237] mb-4" />
-        <h2 className="text-xl font-bold text-slate-800 mb-2">Admin Dashboard</h2>
-        <p className="text-slate-500 text-center mb-6 text-sm">Please sign in with your authorized admin account to view the captured leads.</p>
-        <button 
-          onClick={handleLogin}
-          className="flex items-center gap-2 px-6 py-3 bg-[#EB3237] hover:bg-[#D32F2F] text-white rounded-lg font-medium transition-colors w-full justify-center"
-        >
-          <LogIn className="w-5 h-5" />
-          Sign in with Google
-        </button>
-        <button onClick={onExit} className="mt-4 text-sm text-slate-500 hover:text-slate-700 underline">
-          Return to App
-        </button>
-        {error && <p className="mt-4 text-red-500 text-sm">{error}</p>}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+          <h2 className="text-xl font-bold text-slate-800 mb-4">Admin Access</h2>
+          <form onSubmit={handleLogin} className="w-full">
+            <div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB3237]/50 placeholder-slate-400"
+                placeholder="Enter password"
+              />
+            </div>
+            {error && <p className="mt-2 text-red-500 text-sm">{error}</p>}
+            <div className="flex justify-end gap-3 font-medium mt-6">
+              <button 
+                type="button" 
+                onClick={onExit} 
+                className="text-slate-600 hover:text-slate-800 px-4 py-2"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit"
+                className="bg-[#EB3237] hover:bg-[#D32F2F] text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Access
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="w-full max-w-6xl mx-auto p-4 md:p-8"
-    >
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-50 pt-4 md:pt-10">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="w-full max-w-6xl mx-auto p-4 md:p-8"
+      >
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
         <div className="p-6 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -162,7 +166,7 @@ export function AdminDashboard({ onExit }: { onExit: () => void }) {
               </h2>
               <div className="flex items-center gap-2">
                 <p className="text-slate-500 text-sm">Real-time captured leads from the pledge campaign.</p>
-                <span className="text-xs font-medium px-2 py-0.5 bg-green-100 text-green-700 rounded-full">{user.email}</span>
+                <span className="text-xs font-medium px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Admin</span>
               </div>
             </div>
           </div>
@@ -228,6 +232,7 @@ export function AdminDashboard({ onExit }: { onExit: () => void }) {
         </div>
       </div>
     </motion.div>
+    </div>
   );
 }
 
