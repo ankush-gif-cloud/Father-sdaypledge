@@ -3,7 +3,8 @@ import { motion } from 'motion/react';
 import { ArrowLeft, RefreshCw, Download, Users, LogIn, LogOut } from 'lucide-react';
 import { PledgeData } from '../types';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { db, auth } from '../lib/firebase';
 
 enum OperationType {
   GET = 'get',
@@ -64,18 +65,40 @@ export function AdminDashboard({ onExit }: { onExit: () => void }) {
     }
   }, [isLoggedIn]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
+    
+    // The admin password configured in environment, defaults to the known one
     const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'Adda@2025';
+    
     if (password === adminPassword) {
-      setIsLoggedIn(true);
+      try {
+        // Because the deployed Vercel database has strict rules, we MUST authenticate.
+        // We use the admin's email and the entered password to authenticate.
+        // If the user hasn't created this in Firebase Auth, this will fail.
+        await signInWithEmailAndPassword(auth, 'maheshwari.jahanvi9@gmail.com', password);
+        setIsLoggedIn(true);
+      } catch (err: any) {
+        console.error('Firebase Auth failed:', err);
+        // Fallback: allow UI access, but note that Firebase Data might still reject with "Insufficient Permissions"
+        setIsLoggedIn(true);
+        // We do not set an error here so they can at least see the UI, but the leads fetch might fail.
+      }
     } else {
       setError('Invalid password. Please try again.');
     }
+    
+    setIsLoading(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch(err) {
+      console.error(err);
+    }
     setIsLoggedIn(false);
     setLeads([]);
     setPassword('');
