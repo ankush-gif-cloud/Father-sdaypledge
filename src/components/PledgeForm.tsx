@@ -86,11 +86,11 @@ export function PledgeForm({ onSubmit }: PledgeFormProps) {
         phoneNumber: formData.phoneNumber,
         createdAt: serverTimestamp(),
       });
-      onSubmit(pledgeData);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'leads');
+      console.error('Failed to save lead to Firestore:', err);
     } finally {
       setIsSubmitting(false);
+      onSubmit(pledgeData);
     }
   };
 
